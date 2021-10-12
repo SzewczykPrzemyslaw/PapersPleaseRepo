@@ -83,8 +83,8 @@ class InspectorTest {
 
     @ParameterizedTest
     @MethodSource("inspectExamples")
-    void inspect(String input, String output){
-        assertEquals(input, output);
+    void inspect(Map<String, String> person, String expectedResult){
+        assertEquals(expectedResult, inspector.inspect(person));
     }
 
     private static Stream<Arguments> inspectExamples(){
@@ -136,17 +136,17 @@ class InspectorTest {
         sofia.put("diplomatic_authorization", "NATION: Kolechia\nNAME: Rasmussen, Sofia\nID#: FU1RU-GYFI8\nACCESS: Antegria, Impor, Republia");
 
         return Stream.of(
-                Arguments.of(inspector.inspect(cameron), "Cause no trouble."),
-                Arguments.of(inspector.inspect(roman), "Detainment: ID number mismatch."),
-                Arguments.of(inspector.inspect(natasha), "Entry denied: missing required ID card."),
-                Arguments.of(inspector.inspect(josef), "Glory to Arstotzka."),
-                Arguments.of(inspector.inspect(aleksi), "Entry denied: citizen of banned nation."),
-                Arguments.of(inspector.inspect(kristof), "Detainment: Entrant is a wanted criminal."),
-                Arguments.of(inspector.inspect(roberta), "Cause no trouble."),
-                Arguments.of(inspector.inspect(zachary), "Entry denied: missing required certificate of vaccination."),
-                Arguments.of(inspector.inspect(karin), "Detainment: name mismatch."),
-                Arguments.of(inspector.inspect(lisa), "Entry denied: missing required access permit."),
-                Arguments.of(inspector.inspect(sofia), "Entry denied: invalid diplomatic authorization.")
+                Arguments.of(cameron, "Cause no trouble."),
+                Arguments.of(roman, "Detainment: ID number mismatch."),
+                Arguments.of(natasha, "Entry denied: missing required ID card."),
+                Arguments.of(josef, "Glory to Arstotzka."),
+                Arguments.of(aleksi, "Entry denied: citizen of banned nation."),
+                Arguments.of(kristof, "Detainment: Entrant is a wanted criminal."),
+                Arguments.of(roberta, "Cause no trouble."),
+                Arguments.of(zachary, "Entry denied: missing required certificate of vaccination."),
+                Arguments.of(karin, "Detainment: name mismatch."),
+                Arguments.of(lisa, "Entry denied: missing required access permit."),
+                Arguments.of(sofia, "Entry denied: invalid diplomatic authorization.")
         );
     }
 

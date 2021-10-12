@@ -47,7 +47,7 @@ public class Inspector {
                 .anyMatch(s -> s.matches(containRegEx));
     }
 
-    private static List<String> searchForCountry(String bulletin, String containRegEx, String replaceRegEx){
+    private static List<String> searchForRequirements(String bulletin, String containRegEx, String replaceRegEx){
         String[] splitBulletin = bulletin.split("\\n");
         return Arrays.stream(splitBulletin)
                 .filter(s -> s.matches(containRegEx))
@@ -56,19 +56,19 @@ public class Inspector {
                 .collect(Collectors.toList());
     }
 
-    private static void loopOverAddCountries(List<Set<String>> listOfCountries, String bulletin, String containRegEx, String replaceRegEx){
+    private static void addVaccinations(List<Set<String>> listOfCountries, String bulletin, String containRegEx, String replaceRegEx){
         for(Set<String> countries: listOfCountries){
-            countries.addAll(searchForCountry(bulletin, containRegEx, replaceRegEx));
+            countries.addAll(searchForRequirements(bulletin, containRegEx, replaceRegEx));
         }
     }
 
-    private static void loopOverRemoveCountries(List<Set<String>> listOfCountries, String bulletin, String containRegEx, String replaceRegEx){
+    private static void removeVaccinations(List<Set<String>> listOfCountries, String bulletin, String containRegEx, String replaceRegEx){
         for(Set<String> countries: listOfCountries){
-            searchForCountry(bulletin, containRegEx, replaceRegEx).forEach(countries::remove);
+            searchForRequirements(bulletin, containRegEx, replaceRegEx).forEach(countries::remove);
         }
     }
 
-    private String citizensOfReplace(String bulletin, String matchRegEx, String replaceRegEx){
+    private String replaceCitizensRegEx(String bulletin, String matchRegEx, String replaceRegEx){
         String[] splitBulletin = bulletin.split("\\n");
         for(String s: splitBulletin){
             if(s.matches(matchRegEx)){
@@ -78,7 +78,7 @@ public class Inspector {
         return null;
     }
 
-    private String vaccinationAddReplace(String bulletin){
+    private String replaceVaccinationRegEx(String bulletin, String regEx){
         String[] splitBulletin = bulletin.split("\\n");
         for(String s: splitBulletin){
             if(s.matches("Citizens of (.+?) require (.+?) vaccination")){
@@ -88,25 +88,15 @@ public class Inspector {
         return null;
     }
 
-    private String vaccinationRemoveReplace(String bulletin){
-        String[] splitBulletin = bulletin.split("\\n");
-        for(String s: splitBulletin){
-            if(s.matches(("Citizens of (.+?) no longer require (.+?) vaccination"))){
-                return s.replaceAll(requireRegEx, "");
-            }
-        }
-        return null;
-    }
-
     private void AddOrRemoveVaccination(String bulletin, String matchRegEx, String replaceRegEx){
-        String countriesString = citizensOfReplace(bulletin, matchRegEx, replaceRegEx); // getting countries to string
-        String vaccinationAdd = vaccinationAddReplace(bulletin); // getting vaccination to string
-        String vaccinationRemove = vaccinationRemoveReplace(bulletin); // getting vaccination to string
+        String countriesString = replaceCitizensRegEx(bulletin, matchRegEx, replaceRegEx); // getting countries to string
+        String vaccinationAdd = replaceVaccinationRegEx(bulletin,"Citizens of (.+?) require (.+?) vaccination"); // getting vaccination to string
+        String vaccinationRemove = replaceVaccinationRegEx(bulletin, "Citizens of (.+?) no longer require (.+?) vaccination"); // getting vaccination to string
         try{
             if(countriesString != null && countriesString.matches(".*,.*")){
-                String[] split = countriesString.split(", ");
-                for(String s: split){
-                    String string = s.replaceAll("\\s", "");
+                String[] countries = countriesString.split(", ");
+                for(String country: countries){
+                    String string = country.replaceAll("\\s", "");
                     if(matchRegEx.matches(".*no longer.*")){
                         newBulletin.get(string).remove(vaccinationRemove);
                     } else {
@@ -114,11 +104,13 @@ public class Inspector {
                     }
                 }
             } else {
-                String string = countriesString.replaceAll("\\s", "");
-                if(matchRegEx.matches(".*no longer.*")){
-                    newBulletin.get(string).remove(vaccinationRemove);
-                } else {
-                    newBulletin.get(string).add(vaccinationAdd);
+                if(countriesString != null){
+                    String string = countriesString.replaceAll("\\s", "");
+                    if(matchRegEx.matches(".*no longer.*")){
+                        newBulletin.get(string).remove(vaccinationRemove);
+                    } else {
+                        newBulletin.get(string).add(vaccinationAdd);
+                    }
                 }
             }
         } catch(NullPointerException e){}
@@ -127,12 +119,12 @@ public class Inspector {
     public void receiveBulletin(String bulletin) {
         System.out.println(bulletin);
         if(checkIfMatches(bulletin, "Allow citizens of (.+)")){
-            allowed.addAll(searchForCountry(bulletin, "Allow citizens of (.+)", ofRegEx));
-            searchForCountry(bulletin, "Allow citizens of (.+)", ofRegEx).forEach(denied::remove);
+            allowed.addAll(searchForRequirements(bulletin, "Allow citizens of (.+)", ofRegEx));
+            searchForRequirements(bulletin, "Allow citizens of (.+)", ofRegEx).forEach(denied::remove);
         }
         if(checkIfMatches(bulletin, "Deny citizens of (.+)")){
-            denied.addAll(searchForCountry(bulletin, "Deny citizens of (.+)", ofRegEx));
-            searchForCountry(bulletin, "Deny citizens of (.+)", ofRegEx).forEach(allowed::remove);
+            denied.addAll(searchForRequirements(bulletin, "Deny citizens of (.+)", ofRegEx));
+            searchForRequirements(bulletin, "Deny citizens of (.+)", ofRegEx).forEach(allowed::remove);
         }
         if(checkIfMatches(bulletin, "Foreigners require access permit")){
             setRequire_AccessPermit(true);
@@ -147,16 +139,16 @@ public class Inspector {
             setRequire_WorkPass(true);
         }
         if(checkIfMatches(bulletin, "Foreigners require (.+?) vaccination")){
-            loopOverAddCountries(foreigners, bulletin, "Foreigners require (.+?) vaccination", requireRegEx);
+            addVaccinations(foreigners, bulletin, "Foreigners require (.+?) vaccination", requireRegEx);
         }
         if(checkIfMatches(bulletin, "Foreigners no longer require (.+?) vaccination")){
-            loopOverRemoveCountries(foreigners, bulletin, "Foreigners no longer require (.+?) vaccination", requireRegEx);
+            removeVaccinations(foreigners, bulletin, "Foreigners no longer require (.+?) vaccination", requireRegEx);
         }
         if(checkIfMatches(bulletin, "Entrants require (.+?) vaccination")){
-            loopOverAddCountries(countries, bulletin, "Entrants require (.+?) vaccination", requireRegEx);
+            addVaccinations(countries, bulletin, "Entrants require (.+?) vaccination", requireRegEx);
         }
         if(checkIfMatches(bulletin, "Entrants no longer require (.+?) vaccination")){
-            loopOverRemoveCountries(countries, bulletin, "Entrants no longer require (.+?) vaccination", requireRegEx);
+            removeVaccinations(countries, bulletin, "Entrants no longer require (.+?) vaccination", requireRegEx);
         }
         if(checkIfMatches(bulletin, "Citizens of (.+?) require (.+?) vaccination")){
             AddOrRemoveVaccination(bulletin, "Citizens of (.+?) require (.+?) vaccination", " require.*");
@@ -167,80 +159,40 @@ public class Inspector {
         if(checkIfMatches(bulletin, "Wanted by the State: (.+)")){
             wanted = newBulletin.get("Wanted");
             wanted.clear();
-            wanted.addAll(searchForCountry(bulletin, "Wanted by the State: (.+)", colonRegEx));
+            wanted.addAll(searchForRequirements(bulletin, "Wanted by the State: (.+)", colonRegEx));
         }
     }
 
     public String inspect(Map<String, String> person) {
         decisionData.clear();
-
-        if(checkCountry(person, "Arstotzka")){
-            inspectVaccination(person, arstotzka);
-            inspectDataEquality(person);
-            inspectIfAllowed(person, allowed, "NATION", "Arstotzka");
-            inspectIfWanted(person);
-            inspectIfDocExpired(person);
-            inspectID(person);
-            return makeDecision(decisionData, person);
-        }
-        if(checkCountry(person, "Antegria")){
-            inspectVaccination(person, antegria);
-            inspectDataEquality(person);
-            inspectIfAllowed(person, allowed, "NATION", "Antegria");
-            inspectIfWanted(person);
-            inspectIfDocExpired(person);
-            inspectID(person);
-            return makeDecision(decisionData, person);
-        }
-        if(checkCountry(person, "Impor")){
-            inspectVaccination(person, impor);
-            inspectDataEquality(person);
-            inspectIfAllowed(person, allowed, "NATION", "Impor");
-            inspectIfWanted(person);
-            inspectIfDocExpired(person);
-            inspectID(person);
-            return makeDecision(decisionData, person);
-        }
-        if(checkCountry(person, "Kolechia")){
-            inspectVaccination(person, kolechia);
-            inspectDataEquality(person);
-            inspectIfAllowed(person, allowed, "NATION", "Kolechia");
-            inspectIfWanted(person);
-            inspectIfDocExpired(person);
-            inspectID(person);
-            return makeDecision(decisionData, person);
-        }
-        if(checkCountry(person, "Obristan")){
-            inspectVaccination(person, obristan);
-            inspectDataEquality(person);
-            inspectIfAllowed(person, allowed, "NATION", "Obristan");
-            inspectIfWanted(person);
-            inspectIfDocExpired(person);
-            inspectID(person);
-            return makeDecision(decisionData, person);
-        }
-        if(checkCountry(person, "Republia")){
-            inspectVaccination(person, republia);
-            inspectDataEquality(person);
-            inspectIfAllowed(person, allowed, "NATION", "Republia");
-            inspectIfWanted(person);
-            inspectIfDocExpired(person);
-            inspectID(person);
-            return makeDecision(decisionData, person);
-        }
-        if(checkCountry(person, "United Federation")){
-            inspectVaccination(person, unitedFederation);
-            inspectDataEquality(person);
-            inspectIfAllowed(person, allowed, "NATION", "United Federation");
-            inspectIfWanted(person);
-            inspectIfDocExpired(person);
-            inspectID(person);
-            return makeDecision(decisionData, person);
+        String countryName = exportCountry(person);
+        if(countryName != null){
+            inspectEntrant(person);
         }
         checkLackOfID(person);
         inspectIfDocExpired(person);
         diplomaticAccess(person);
         return makeDecision(decisionData, person);
+    }
+
+    private void inspectEntrant(Map<String, String> person) {
+        String countryName = exportCountry(person);
+        if(checkCountry(person, countryName)){
+            inspectVaccination(person, getSet(person));
+            inspectDataEquality(person);
+            inspectIfAllowed(person, allowed, "NATION", countryName);
+            inspectIfWanted(person);
+            inspectIfDocExpired(person);
+            inspectID(person);
+        }
+    }
+
+    private Set<String> getSet(Map<String, String> person){
+        String country = exportCountry(person);
+        if(country != null && country.equals("United Federation")){
+            country = country.replaceAll(" ", "");
+        }
+        return newBulletin.get(country);
     }
 
     private boolean checkCountry(Map<String, String> person, String country) {
@@ -254,16 +206,32 @@ public class Inspector {
         return false;
     }
 
-    private void inspectVaccination(Map<String, String> personData, Set<String> country){
-        for(Map.Entry<String, String> personEntry : personData.entrySet()){
-            for (String vaccinationData : country) {
-                if (vaccinationData.matches(".*vaccination.*") && !personData.containsKey("certificate_of_vaccination")) {
-                    decisionData.add("Entry denied: missing required certificate of vaccination.");
+    private String exportCountry(Map<String, String> person) {
+        for (Map.Entry<String, String> entry : person.entrySet()) {
+            if (entry.getValue().contains("NATION:")) {
+                String[] splitData = entry.getValue().split("\\n");
+                for(String pair: splitData) {
+                    if (pair.contains("NATION:")) {
+                        return pair.substring(pair.indexOf(":") + 2);
+                    }
                 }
-                if ("certificate_of_vaccination".equals(personEntry.getKey()) && vaccinationData.matches(".*vaccination.*")) {
-                    String require = vaccinationData.replaceAll(" vaccination", "").replaceAll("_", " ");
-                    if (!personEntry.getValue().contains(require)) {
-                        decisionData.add("Entry denied: missing required vaccination.");
+            }
+        }
+        return null;
+    }
+
+    private void inspectVaccination(Map<String, String> personData, Set<String> country){
+        for(Map.Entry<String, String> personEntry : personData.entrySet()) {
+            for(String vaccinationData : country) {
+                if(vaccinationData.matches(".*vaccination.*")) {
+                    if(!personData.containsKey("certificate_of_vaccination")) {
+                        decisionData.add("Entry denied: missing required certificate of vaccination.");
+                    }
+                    if("certificate_of_vaccination".equals(personEntry.getKey())) {
+                        String require = vaccinationData.replaceAll(" vaccination", "").replaceAll("_", " ");
+                        if(!personEntry.getValue().contains(require)) {
+                            decisionData.add("Entry denied: missing required vaccination.");
+                        }
                     }
                 }
             }
@@ -331,19 +299,17 @@ public class Inspector {
     }
 
     private void inspectIfWanted(Map<String, String> personDocument) {
-        for (Map.Entry<String, String> personEntry : personDocument.entrySet()) {
+        for(Map.Entry<String, String> personEntry : personDocument.entrySet()) {
             String[] splitData = personEntry.getValue().split("\\n");
-            for (String dataRequirements : splitData) {
-                if (dataRequirements.contains("NAME")) {
+            for(String dataRequirements : splitData) {
+                if(dataRequirements.contains("NAME")) {
                     String checkName = dataRequirements.replaceAll(colonRegEx, "");
-                    try {
-                        String wantedCriminalSecondName = checkName.replaceAll(",.*", "");
-                        String wantedCriminalFirstName = checkName.replaceAll(".*, ", "");
-                        if (wanted.iterator().next().matches(".*" + wantedCriminalFirstName + ".*") &&
-                                wanted.iterator().next().matches(".*" + wantedCriminalSecondName + ".*")) {
-                            decisionData.add("Detainment: Entrant is a wanted criminal.");
-                        }
-                    } catch (NoSuchElementException e) {
+                    String wantedCriminalSecondName = checkName.replaceAll(",.*", "");
+                    String wantedCriminalFirstName = checkName.replaceAll(".*, ", "");
+                    if(wanted.iterator().next().matches(".*" + wantedCriminalFirstName + ".*") &&
+                            wanted.iterator().next().matches(".*" + wantedCriminalSecondName + ".*") &&
+                            wanted.iterator().hasNext()) {
+                        decisionData.add("Detainment: Entrant is a wanted criminal.");
                     }
                 }
             }
